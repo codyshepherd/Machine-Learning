@@ -12,6 +12,8 @@ Three algorithms are used by this program:
 
 The Neural Net looks for beaconing behavior. It reads data from the http.log produced by Bro, which has been edited by hand to include beaconing classifications for each traffic session. After training on 20,000 http sessions and their provided classifications, it then can attempt to classify the 2,000 or so sessions remaining from the log. Any sessions deemed to display beaconing will be output to the lower list box on the GUI frame.
 
+Currently the training loop is hard-coded to look at 20,000 samples (line 410 of nfgen.py). The nn_predict() function then looks at the remainder from the file.
+
 This algorithm has demonstrated modest success in detecting repetitious behavior.
 
 Currently the neural net initialization parameters are hard-coded in the nnTrain() method in nfgen.py. However, in the future I intend to include UI elements for tweaking these initialization parameters. The current parameters have been chosen because they display the best performance in regards to beaconing. The documentation for the parameters can be found at the sklearn webpage.
