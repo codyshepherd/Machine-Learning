@@ -4,6 +4,10 @@ import pandas as pd
 import ipaddress as ipad
 import calendar
 
+#TODO: May not need Conn object, depending on how much 
+# info we decide we want to store for a given sample
+
+
 #enum substitute
 #TODO: Expand to accept pcaps, netflow
 class Doc_t:
@@ -42,13 +46,15 @@ class Data:
     BRO_OBYTES = 9
     BRO_RBYTES = 10
 
-    def __init__(self, fname, typenum):
+    def __init__(self, fname, typenum, start):
         self.type = typenum
         self.fname = fname
-        #self.lines = self.get_lines()
+        self.series = []
+        self.start = start
 
     def __enter__(self):
         self.fhandle = open(self.fname, self.FILE_MODE)
+        self.fhandle.seek(self.start)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -56,6 +62,9 @@ class Data:
 
     def set_type(self, t=Doc_t.BRO):
         self.type = t
+
+    def tell(self):
+        return self.fhandle.tell()
 
     def get_lines(self, num):
         for i in xrange(num):
@@ -71,6 +80,14 @@ class Data:
                 spline = line.split()
 
                 try:
+                    self.series = pd.Series({'atime': calendar.timegm(datetime.datetime.fromtimestamp(float(spline[self.BRO_TIME])).timetuple()),\
+                                             'bsrc': self.integerize(self.ip(unicode(spline[self.BRO_SRC]))),\
+                                             'cdest': self.integerize(self.ip(unicode(spline[self.BRO_DEST]))),\
+                                             'dport': self.integerize(spline[self.BRO_PORT]),\
+                                             'edur': self.floatize(spline[self.BRO_DUR]),\
+                                             'fobytes': self.integerize(spline[self.BRO_OBYTES]),\
+                                             'grbytes': self.integerize(spline[self.BRO_RBYTES])})
+                    """
                     conn = Conn_t()
                     conn.time = datetime.datetime.fromtimestamp(float(spline[self.BRO_TIME]))
                     conn.uid = spline[self.BRO_UID]
@@ -80,43 +97,49 @@ class Data:
                     conn.dur = self.floatize(spline[self.BRO_DUR])
                     conn.obytes = self.integerize(spline[self.BRO_OBYTES])
                     conn.rbytes = self.integerize(spline[self.BRO_RBYTES])
+                    """
                 except ValueError:
                     print "ValueError thrown... Contents of spline in Data.get_lines():"
                     print spline
                     return
 
-                self.series = pd.Series({'time': calendar.timegm(conn.time.timetuple()),\
-                                         'src': int(ipad.ip_address(conn.src)),\
-                                         'dest': int(ipad.ip_address(conn.dest)),\
-                                         'port': int(conn.port),\
-                                         'dur': conn.dur,\
-                                         'obytes': conn.obytes,\
-                                         'rbytes': conn.rbytes})
 
-                yield conn
+                yield self.series
 
     #Exception-safe Conversion methods
     def integerize(self, line):
         try:
             num = int(line)
         except ValueError, TypeError:
-            print "Exception converting line to int in Data.integerize"
-            num = None
+            #print "Exception converting line to int in Data.integerize"
+            #print line
+            num = 0
         return num
 
     def floatize(self,line):
         try:
             num = float(line)
         except ValueError, TypeError:
-            print "Exception converting line to float in Data.floatize"
-            num = None
+            #print "Exception converting line to float in Data.floatize"
+            #print line
+            num = 0.0
         return num
 
+    def ip(self, line):
+        try:
+            num = ipad.ip_address(line)
+        except ValueError:
+            #print "Exception converting line to ipaddress in Data.ip"
+            #print line
+            num = 0
+        return num
 
 """
 #Testing iterator functionality
 with Data('conn.log',Doc_t.BRO) as d:
-    for conn in d.get_lines(20):
-        print conn
+    for series in d.get_lines(20):
+        print series.keys()
+        for item in series.values:
+            print item
         print
 """
